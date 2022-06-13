@@ -1,6 +1,4 @@
 import sqlite3
-from turtle import update
-from unittest import result
 from flask_restful import Resource, reqparse
 from flask_jwt import jwt_required
 
