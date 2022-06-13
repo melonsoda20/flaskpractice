@@ -1,4 +1,5 @@
 import sqlite3
+from turtle import update
 from unittest import result
 from flask_restful import Resource, reqparse
 from flask_jwt import jwt_required
@@ -47,6 +48,17 @@ class Item(Resource):
         connection.commit()
         connection.close()
 
+    @classmethod
+    def update_item(cls, item):
+        connection = sqlite3.connect('data.db')
+        cursor = connection.cursor()
+
+        query = "UPDATE items SET price=? WHERE name=?"
+        cursor.execute(query, (item['price'], item['name'],))
+
+        connection.commit()
+        connection.close()
+
     @jwt_required()
     def get(self, name):
         item = self.find_by_name(name)
@@ -60,7 +72,12 @@ class Item(Resource):
 
         data = Item.parser.parse_args()
         item = {'name': name, 'price': data['price']}
-        self.create_item(item)
+
+        try:
+            self.create_item(item)
+        except:
+            return {"message": "An error occurred inserting the time."}, 500
+
         return item, 201
 
     def delete(self, name):
@@ -69,14 +86,21 @@ class Item(Resource):
 
     def put(self, name):
         data = Item.parser.parse_args()
-        item = next(filter(lambda x: x['name'] == name, items), None)
+        item = self.find_by_name(name)
+        updated_item = {'name': name, 'price': data['price']}
+        
         if item is None:
-            item = {'name': name, 'price': data['price']}
-            items.append(item)
+            try:
+                self.create_item(updated_item)
+            except:
+                return {"message": "An error occurred inserting the time."}, 500
         else:
-            item.update(data)
+            try:
+                self.update_item(updated_item)
+            except:
+                return {"message": "An error occurred updating the time."}, 500
 
-        return item
+        return updated_item
 
 class ItemList(Resource):
     def get(self):
