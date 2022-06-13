@@ -1,6 +1,7 @@
 import sqlite3
 from flask_restful import Resource, reqparse
 from flask_jwt import jwt_required
+from models.item import ItemModel
 
 class Item(Resource):
     parser = reqparse.RequestParser()
@@ -10,95 +11,52 @@ class Item(Resource):
         help="This field cannot be left blank!"
     )
 
-    @classmethod
-    def find_by_name(cls, name):
-        connection = sqlite3.connect('data.db')
-        cursor = connection.cursor()
-
-        query = "SELECT * FROM items WHERE name=?"
-        result = cursor.execute(query, (name,))
-        row = result.fetchone()
-
-        connection.close()
-
-        if row:
-            return {'item': {'name': row[0], 'price':row[1]}}
-
-    @classmethod
-    def create_item(cls, item):
-        connection = sqlite3.connect('data.db')
-        cursor = connection.cursor()
-
-        query = "INSERT INTO items VALUES (?, ?)"
-        cursor.execute(query, (item['name'], item['price']))
-
-        connection.commit()
-        connection.close()
-
-    @classmethod
-    def delete_item(cls, name):
-        connection = sqlite3.connect('data.db')
-        cursor = connection.cursor()
-
-        query = "DELETE FROM items WHERE name=?"
-        cursor.execute(query, (name,))
-
-        connection.commit()
-        connection.close()
-
-    @classmethod
-    def update_item(cls, item):
-        connection = sqlite3.connect('data.db')
-        cursor = connection.cursor()
-
-        query = "UPDATE items SET price=? WHERE name=?"
-        cursor.execute(query, (item['price'], item['name'],))
-
-        connection.commit()
-        connection.close()
-
     @jwt_required()
     def get(self, name):
-        item = self.find_by_name(name)
+        item = ItemModel.find_by_name(name)
         if item:
-            return item
+            return item.json()
         return {'message': 'Item not found'}, 404
 
     def post(self, name):
-        if self.find_by_name(name):
+        if ItemModel.find_by_name(name):
             return {'message': "An item with name '{}' already exists.".format(name)}, 400
 
         data = Item.parser.parse_args()
-        item = {'name': name, 'price': data['price']}
+        item = ItemModel(name, data['price'])
 
         try:
-            self.create_item(item)
+            item.create_item()
         except:
             return {"message": "An error occurred inserting the time."}, 500
 
-        return item, 201
+        return item.json(), 201
 
     def delete(self, name):
-        self.delete_item(name)
-        return {'message': 'Item deleted'}
+        item = ItemModel.find_by_name(name)
+        if item:
+            item.delete_item()
+            return {'message': "Item has been deleted"}
+        return {'message': "Item doesn't exists"}, 500
 
     def put(self, name):
         data = Item.parser.parse_args()
-        item = self.find_by_name(name)
-        updated_item = {'name': name, 'price': data['price']}
+        item = ItemModel.find_by_name(name)
+        updated_item = ItemModel(name, data['price'])
         
         if item is None:
             try:
-                self.create_item(updated_item)
+                updated_item.create_item()
             except:
                 return {"message": "An error occurred inserting the time."}, 500
         else:
             try:
-                self.update_item(updated_item)
+                updated_item.update_item()
             except:
                 return {"message": "An error occurred updating the time."}, 500
 
-        return updated_item
+        return updated_item.json()
+
 
 class ItemList(Resource):
     @classmethod
