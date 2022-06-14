@@ -26,7 +26,7 @@ class Item(Resource):
         item = ItemModel(name, data['price'])
 
         try:
-            item.create_item()
+            item.save_to_db()
         except:
             return {"message": "An error occurred inserting the time."}, 500
 
@@ -35,27 +35,22 @@ class Item(Resource):
     def delete(self, name):
         item = ItemModel.find_by_name(name)
         if item:
-            item.delete_item()
+            item.delete_from_db()
             return {'message': "Item has been deleted"}
         return {'message': "Item doesn't exists"}, 500
 
     def put(self, name):
         data = Item.parser.parse_args()
         item = ItemModel.find_by_name(name)
-        updated_item = ItemModel(name, data['price'])
         
         if item is None:
-            try:
-                updated_item.create_item()
-            except:
-                return {"message": "An error occurred inserting the time."}, 500
+            item = ItemModel(name, data['price'])
         else:
-            try:
-                updated_item.update_item()
-            except:
-                return {"message": "An error occurred updating the time."}, 500
+            item.price = data['price']
+        
+        item.save_to_db()
 
-        return updated_item.json()
+        return item.json()
 
 
 class ItemList(Resource):
